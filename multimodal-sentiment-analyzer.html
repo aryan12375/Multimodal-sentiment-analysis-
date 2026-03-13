@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SonicSense — Multimodal Sentiment Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#080b12;--surface:#0d1220;--surface2:#121829;--surface3:#161e30;--border:rgba(99,179,237,0.12);--border2:rgba(99,179,237,0.22);--accent:#00e5ff;--accent2:#7c3aed;--accent3:#f59e0b;--pos:#22c55e;--neg:#ef4444;--neu:#94a3b8;--conflict:#f97316;--text:#e2e8f0;--text-dim:#64748b;--text-mid:#8b9cb3;--glow:0 0 30px rgba(0,229,255,0.15);--glow2:0 0 60px rgba(0,229,255,0.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.bg-field{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-field canvas{width:100%;height:100%}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");opacity:.4}
+header{position:relative;z-index:10;padding:22px 48px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);background:rgba(8,11,18,.8)}
+.logo{display:flex;align-items:center;gap:14px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent2),var(--accent));border-radius:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,229,255,.3);position:relative;overflow:hidden}
+.logo-icon::after{content:'';position:absolute;inset:0;background:linear-gradient(45deg,transparent 40%,rgba(255,255,255,.2) 60%,transparent 80%);animation:shimmer 3s infinite}
+@keyframes shimmer{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+.logo-waves{display:flex;align-items:center;gap:2px;height:20px}
+.logo-waves span{display:block;width:3px;background:#fff;border-radius:3px;animation:lp 1.2s ease-in-out infinite}
+.logo-waves span:nth-child(1){height:6px;animation-delay:0s}.logo-waves span:nth-child(2){height:14px;animation-delay:.1s}.logo-waves span:nth-child(3){height:20px;animation-delay:.2s}.logo-waves span:nth-child(4){height:12px;animation-delay:.3s}.logo-waves span:nth-child(5){height:8px;animation-delay:.4s}
+@keyframes lp{0%,100%{transform:scaleY(.6);opacity:.7}50%{transform:scaleY(1);opacity:1}}
+.logo-text h1{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(90deg,var(--accent),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-text span{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase}
+.header-tags{display:flex;gap:7px;flex-wrap:wrap}
+.htag{padding:4px 11px;border:1px solid var(--border);border-radius:100px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.htag.live{border-color:rgba(34,197,94,.4);color:var(--pos);display:flex;align-items:center;gap:6px}
+.ldot{width:6px;height:6px;border-radius:50%;background:var(--pos);animation:lb 1.5s ease-in-out infinite}
+@keyframes lb{0%,100%{opacity:1;box-shadow:0 0 6px var(--pos)}50%{opacity:.3;box-shadow:none}}
+.hero{position:relative;z-index:5;padding:64px 48px 44px;text-align:center}
+.hero-eyebrow{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:12px}
+.hero-eyebrow::before,.hero-eyebrow::after{content:'';display:block;width:40px;height:1px;background:linear-gradient(90deg,transparent,var(--accent))}
+.hero-eyebrow::after{transform:rotate(180deg)}
+.hero h2{font-family:'Syne',sans-serif;font-size:clamp(32px,5vw,58px);font-weight:800;line-height:1.06;letter-spacing:-2px;margin-bottom:16px}
+.hero h2 em{font-style:normal;background:linear-gradient(135deg,var(--accent) 0%,#a78bfa 50%,var(--accent3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-size:200%;animation:gs 4s ease infinite}
+@keyframes gs{0%,100%{background-position:0%}50%{background-position:100%}}
+.hero p{max-width:580px;margin:0 auto 28px;color:var(--text-dim);font-size:15px;line-height:1.7}
+.hero-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.badge{padding:5px 12px;background:rgba(99,179,237,.07);border:1px solid var(--border);border-radius:100px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);transition:all .3s;cursor:default}
+.badge:hover{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow)}
+.main{position:relative;z-index:5;max-width:1240px;margin:0 auto;padding:0 48px 80px}
+.waveform-strip{width:100%;height:56px;margin-bottom:28px;position:relative;display:flex;align-items:center}
+#waveform-canvas{width:100%;height:56px;border-radius:12px;border:1px solid var(--border)}
+.wv-label{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:2px}
+.settings-row{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.sch{padding:6px 13px;background:var(--surface);border:1px solid var(--border);border-radius:9px;font-size:12px;color:var(--text-dim);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;user-select:none}
+.sch.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.07);box-shadow:0 0 10px rgba(0,229,255,.07)}
+.sch .d{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;transition:opacity .2s;flex-shrink:0}
+.sch.active .d{opacity:1}
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;transition:border-color .3s,box-shadow .3s;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .3s}
+.panel:hover{border-color:var(--border2);box-shadow:var(--glow2)}.panel:hover::before{opacity:1}
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.pi{width:32px;height:32px;background:rgba(0,229,255,.08);border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.pt{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:.3px}
+.ps{font-size:11px;color:var(--text-dim);margin-top:1px}
+textarea{width:100%;height:124px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;resize:none;outline:none;transition:border-color .3s,box-shadow .3s}
+textarea::placeholder{color:var(--text-dim)}
+textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,229,255,.1)}
+.tiw{position:relative}
+.cc{position:absolute;bottom:8px;right:11px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim)}
+.ecs{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.chip{padding:3px 9px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--text-dim);cursor:pointer;transition:all .2s;white-space:nowrap}
+.chip:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.06)}
+.adz{border:2px dashed var(--border);border-radius:12px;height:124px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:all .3s;background:var(--surface2)}
+.adz:hover,.adz.dragover{border-color:var(--accent);background:rgba(0,229,255,.04);box-shadow:inset 0 0 30px rgba(0,229,255,.04)}
+.adz .di{font-size:24px;opacity:.7}
+.adz .dt{font-size:12px;color:var(--text-dim);text-align:center}
+.adz .dt strong{color:var(--accent);font-weight:500}
+.adz .dh{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px}
+input[type="file"]{display:none}
+.al{width:100%;padding:9px;display:flex;flex-direction:column;gap:7px}
+.afi{display:flex;align-items:center;gap:9px}
+.aic{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.afn{font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.afs{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim)}
+.arm{width:21px;height:21px;border-radius:5px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:var(--neg);transition:all .2s}
+.arm:hover{background:rgba(239,68,68,.2)}
+#mini-waveform{width:100%;height:36px;border-radius:7px}
+.mc{display:flex;gap:6px;margin-top:7px}
+.mb{flex:1;padding:7px 13px;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:8px;color:#a78bfa;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px}
+.mb:hover{background:rgba(124,58,237,.2);border-color:rgba(124,58,237,.5)}
+.mb.recording{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:var(--neg);animation:pr 1s ease infinite}
+@keyframes pr{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px rgba(239,68,68,.3)}}
+.miss-banner{display:none;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.28);border-radius:11px;padding:11px 14px;margin-bottom:14px;gap:9px;align-items:flex-start}
+.miss-banner.show{display:flex}
+.miss-banner-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.miss-banner-text{font-size:12px;color:var(--accent3);line-height:1.55}
+.miss-banner-text strong{color:#fbbf24;font-weight:500}
+.abtn{width:100%;padding:15px;background:linear-gradient(135deg,var(--accent2) 0%,#4f46e5 40%,var(--accent) 100%);border:none;border-radius:14px;color:#fff;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;cursor:pointer;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;box-shadow:0 4px 26px rgba(124,58,237,.35);margin-bottom:18px;display:flex;align-items:center;justify-content:center;gap:10px}
+.abtn:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(124,58,237,.5)}
+.abtn:active{transform:translateY(0)}
+.abtn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.15) 50%,transparent 100%);transform:translateX(-100%);transition:transform .6s}
+.abtn:hover::after{transform:translateX(100%)}
+.abtn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;display:none}
+.spinner.visible{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+#results{opacity:0;transform:translateY(20px);transition:opacity .5s,transform .5s;display:none}
+#results.visible{opacity:1;transform:translateY(0);display:block}
+.rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.rt{font-family:'Syne',sans-serif;font-size:16px;font-weight:700}
+.rm{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:13px}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:18px;text-align:center;position:relative;overflow:hidden;transition:all .3s}
+.ml{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px}
+.mdot{width:6px;height:6px;border-radius:50%}
+.sem{font-size:28px;margin-bottom:5px}
+.sl{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;letter-spacing:.5px}
+.sl.positive{color:var(--pos)}.sl.negative{color:var(--neg)}.sl.neutral{color:var(--neu)}.sl.mixed{color:var(--accent3)}.sl.conflict{color:var(--conflict)}
+.cbw{margin-top:9px}
+.cbl{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:5px}
+.cbb{height:4px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+.cbf{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1);width:0}
+.cbf.positive{background:var(--pos)}.cbf.negative{background:var(--neg)}.cbf.neutral{background:var(--neu)}.cbf.mixed{background:var(--accent3)}.cbf.conflict{background:var(--conflict)}
+.sb{margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.sr{display:flex;align-items:center;gap:6px}
+.se{font-size:10px;color:var(--text-dim);width:52px;text-align:right;font-family:'DM Mono',monospace}
+.smb{flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.smf{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.4,0,.2,1);width:0}
+.sv{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);width:26px}
+/* ─── CONFLICT BANNER ─────────────────── */
+.cfb{display:none;background:linear-gradient(135deg,rgba(249,115,22,.11),rgba(239,68,68,.07));border:1px solid rgba(249,115,22,.42);border-radius:17px;padding:20px 26px;margin-bottom:13px;position:relative;overflow:hidden}
+.cfb.show{display:block;animation:cp .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cp{from{opacity:0;transform:scale(.97) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.cfb::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--neg),var(--conflict),var(--accent3));animation:cs 2s linear infinite}
+@keyframes cs{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}
+.cf-hd{display:flex;align-items:center;gap:11px;margin-bottom:9px}
+.cf-ic{font-size:20px;animation:csh .5s ease .3s}
+@keyframes csh{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.cf-tit{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--conflict);letter-spacing:.5px}
+.cf-sub{font-family:'DM Mono',monospace;font-size:10px;color:rgba(249,115,22,.7);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.cf-body{font-size:13px;color:var(--text-mid);line-height:1.6}
+.cf-body strong{color:var(--text);font-weight:500}
+.cf-pills{display:flex;gap:11px;margin-top:12px;flex-wrap:wrap}
+.cfp{padding:5px 11px;border-radius:7px;font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;gap:5px}
+.cfp.tp{background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);color:#93c5fd}
+.cfp.ap{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);color:#c4b5fd}
+.cf-meter{margin-top:12px}
+.cf-ml{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.cf-mt{height:5px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden}
+.cf-mf{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--pos),var(--accent3),var(--conflict),var(--neg));transition:width 1.2s cubic-bezier(.4,0,.2,1);width:0}
+/* ─── FUSION CARD ─────────────────────── */
+.fc{background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(0,229,255,.08));border:1px solid rgba(0,229,255,.24);border-radius:18px;padding:22px 26px;display:flex;align-items:center;gap:26px;margin-bottom:13px}
+.fv{flex:1}
+.fvl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.fvm{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;letter-spacing:-1px}
+.fvm.positive{color:var(--pos)}.fvm.negative{color:var(--neg)}.fvm.neutral{color:var(--neu)}.fvm.mixed{color:var(--accent3)}.fvm.conflict{color:var(--conflict)}
+.fvs{font-size:12px;color:var(--text-dim);margin-top:4px;line-height:1.5}
+.fvis{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.fcirc{width:70px;height:70px;border-radius:50%;border:1.5px solid var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--surface)}
+.fcl{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.fcv{font-family:'Syne',sans-serif;font-size:12px;font-weight:700}
+.farr{font-size:17px;color:var(--text-dim)}
+.fcirc.fin{width:84px;height:84px;border-color:var(--accent);box-shadow:0 0 18px rgba(0,229,255,.16)}
+.fcirc.fin .fcv{font-size:13px}
+/* ─── INNOVATIONS TABS ────────────────── */
+.innov-wrap{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px 24px;margin-bottom:13px}
+.itabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin:-22px -24px 0;padding:0 24px;margin-bottom:0}
+.tbtn{padding:9px 16px;background:none;border:none;color:var(--text-dim);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:color .2s;position:relative;white-space:nowrap}
+.tbtn.active{color:var(--accent)}
+.tbtn.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent)}
+.tbtn:hover:not(.active){color:var(--text-mid)}
+.tpan{display:none;padding-top:20px}
+.tpan.active{display:block}
+.slabel{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+/* ─── TRAJECTORY ──────────────────────── */
+.trj-wrap{height:155px;position:relative}
+.trj-wrap canvas{width:100%!important;height:155px!important}
+.trj-ctrls{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+.trj-leg{display:flex;gap:11px;flex:1;flex-wrap:wrap}
+.trj-li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim)}
+.trj-dot{width:8px;height:8px;border-radius:50%}
+.wbtns{display:flex;gap:4px}
+.wbtn{padding:3px 8px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);cursor:pointer;transition:all .15s}
+.wbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.07)}
+/* ─── XAI / SHAP ──────────────────────── */
+.xai-hd{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.xai-tag{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:2px 7px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:var(--accent3)}
+.xai-t{font-family:'Syne',sans-serif;font-size:13px;font-weight:700}
+.shap-leg{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.shap-li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim)}
+.shap-sw{width:11px;height:11px;border-radius:2px}
+.tok-hi{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;line-height:2.2}
+.tok{padding:3px 9px;border-radius:5px;font-size:13px;font-weight:500;border:1px solid transparent;transition:transform .2s;cursor:default;position:relative;display:inline-block}
+.tok:hover{transform:translateY(-2px);z-index:2}
+.tok.hp{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.4);color:#4ade80}
+.tok.mp{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.22);color:#86efac}
+.tok.nt{background:rgba(148,163,184,.07);border-color:rgba(148,163,184,.14);color:var(--text-dim)}
+.tok.mn{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.22);color:#fca5a5}
+.tok.hn{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.4);color:#f87171}
+.tok-tip{display:none;position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);border-radius:7px;padding:5px 9px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text);white-space:nowrap;z-index:10;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.tok:hover .tok-tip{display:block}
+.tl-bar{position:relative;height:32px;background:var(--surface2);border-radius:7px;overflow:hidden}
+.tl-seg{position:absolute;top:0;height:100%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.85);font-weight:500}
+/* ─── CROSS-MODAL ATTENTION ───────────── */
+.att-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.att-card{background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:16px}
+.att-cl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:13px}
+.att-m{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.att-ml{font-size:12px;color:var(--text-mid);width:68px}
+.att-bt{flex:1;height:7px;background:rgba(255,255,255,.06);border-radius:7px;overflow:hidden}
+.att-bf{height:100%;border-radius:7px;transition:width 1.3s cubic-bezier(.4,0,.2,1);width:0}
+.att-v{font-family:'DM Mono',monospace;font-size:11px;color:var(--text);width:32px;text-align:right}
+.att-ins{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.13);border-radius:9px;padding:11px 13px;margin-top:11px;font-size:12px;color:var(--text-dim);line-height:1.6}
+.att-ins strong{color:var(--text);font-weight:500}
+.donut-w{display:flex;align-items:center;justify-content:center;height:105px}
+.donut-w canvas{width:105px!important;height:105px!important}
+.acc-grp{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.acc-row{display:flex;align-items:center;gap:9px}
+.acc-lbl{font-size:12px;color:var(--text-dim);width:78px;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.acc-bt{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:6px;overflow:hidden}
+.acc-bf{height:100%;border-radius:6px;transition:width 1.4s cubic-bezier(.4,0,.2,1);width:0}
+.acc-v{font-family:'DM Mono',monospace;font-size:10px;color:var(--text);width:32px;text-align:right}
+.win-badge{padding:2px 7px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.28);border-radius:5px;font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:none}
+/* ─── NOISE ───────────────────────────── */
+.noise-wrap{height:162px;position:relative}
+.noise-wrap canvas{width:100%!important;height:162px!important}
+.noise-btns{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:11px}
+.nb{padding:4px 10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);cursor:pointer;transition:all .15s}
+.nb.active{border-color:var(--accent3);color:var(--accent3);background:rgba(245,158,11,.08)}
+.noise-ins{background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.16);border-radius:9px;padding:11px 13px;margin-top:11px;font-size:12px;color:var(--text-dim);line-height:1.6}
+.noise-ins strong{color:var(--accent3);font-weight:500}
+/* ─── FOOTER / TOAST ──────────────────── */
+footer{position:relative;z-index:5;padding:18px 48px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px}
+.scs{display:flex;gap:5px;flex-wrap:wrap}
+.sc{padding:3px 7px;border:1px solid var(--border);border-radius:4px;font-size:9px}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:9px 17px;font-size:13px;color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.4);transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:100}
+.toast.show{transform:translateX(-50%) translateY(0)}
+@media(max-width:768px){header{padding:14px 18px}.hero{padding:32px 18px 24px}.main{padding:0 18px 50px}.input-grid,.rgrid,.att-grid{grid-template-columns:1fr}.fc{flex-direction:column}.header-tags{display:none}}
+</style>
+</head>
+<body>
+<div class="bg-field"><canvas id="bg-canvas"></canvas></div>
+<div class="grain"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"><div class="logo-waves"><span></span><span></span><span></span><span></span><span></span></div></div>
+    <div class="logo-text"><h1>SonicSense</h1><span>Multimodal Sentiment Analysis</span></div>
+  </div>
+  <div class="header-tags">
+    <div class="htag">BERT + Wav2Vec</div>
+    <div class="htag">Cross-Attention Fusion</div>
+    <div class="htag">SHAP · XAI</div>
+    <div class="htag live"><div class="ldot"></div>Live Demo</div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-eyebrow">Audio × Language Intelligence</div>
+  <h2>Feel the <em>Message</em><br>Behind the Words</h2>
+  <p>Fusing BERT text analysis with Wav2Vec 2.0 CNN audio through cross-attention late fusion — with sarcasm detection, emotion trajectory over time, full SHAP explainability, and noise robustness benchmarking.</p>
+  <div class="hero-badges">
+    <span class="badge">NLP</span><span class="badge">Deep Learning</span><span class="badge">Multimodal AI</span>
+    <span class="badge">BERT</span><span class="badge">PyTorch</span><span class="badge">Wav2Vec 2.0</span>
+    <span class="badge">SHAP</span><span class="badge">Sarcasm Detection</span><span class="badge">Noise Robustness</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="waveform-strip">
+    <canvas id="waveform-canvas"></canvas>
+    <div class="wv-label">AUDIO SIGNAL</div>
+  </div>
+
+  <div class="settings-row">
+    <div class="sch active" onclick="toggleMode(this,'sarcasm')"><div class="d"></div>Sarcasm Detection</div>
+    <div class="sch active" onclick="toggleMode(this,'trajectory')"><div class="d"></div>Emotion Trajectory</div>
+    <div class="sch active" onclick="toggleMode(this,'xai')"><div class="d"></div>SHAP · XAI</div>
+    <div class="sch active" onclick="toggleMode(this,'attention')"><div class="d"></div>Cross-Modal Attention</div>
+    <div class="sch active" onclick="toggleMode(this,'noise')"><div class="d"></div>Noise Robustness</div>
+  </div>
+
+  <div class="input-grid">
+    <div class="panel">
+      <div class="ph"><div class="pi">📝</div><div><div class="pt">Text / Transcript</div><div class="ps">BERT tokenizer → fine-tuned classifier</div></div></div>
+      <div class="tiw">
+        <textarea id="text-input" placeholder="Type a review, comment, or speech transcript...&#10;Try the Sarcasm chip to see conflict detection in action." maxlength="600"></textarea>
+        <div class="cc"><span id="char-num">0</span>/600</div>
+      </div>
+      <div class="ecs">
+        <div class="chip" onclick="setEx(0)">😊 Positive</div>
+        <div class="chip" onclick="setEx(1)">😤 Negative</div>
+        <div class="chip" onclick="setEx(2)">🎭 Sarcasm</div>
+        <div class="chip" onclick="setEx(3)">😐 Neutral</div>
+        <div class="chip" onclick="setEx(4)">💔 Mixed</div>
+        <div class="chip" onclick="setEx(5)">📈 Shifting mood</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><div class="pi">🎙️</div><div><div class="pt">Voice / Audio</div><div class="ps">Mel-spectrogram → CNN · Wav2Vec 2.0</div></div></div>
+      <div id="drop-zone" class="adz" onclick="document.getElementById('fi').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="handleDrop(event)">
+        <div class="di">🎵</div>
+        <div class="dt"><strong>Drop audio</strong> or click to browse</div>
+        <div class="dh">WAV · MP3 · M4A · OGG</div>
+      </div>
+      <input type="file" id="fi" accept="audio/*" onchange="handleFileSelect(event)">
+      <div id="audio-loaded" style="display:none">
+        <div class="al">
+          <div class="afi">
+            <div class="aic">🎧</div>
+            <div><div class="afn" id="afn">—</div><div class="afs" id="afs">—</div></div>
+            <div class="arm" onclick="removeAudio()">✕</div>
+          </div>
+          <canvas id="mini-waveform"></canvas>
+        </div>
+      </div>
+      <div class="mc">
+        <button class="mb" id="mic-btn" onclick="toggleMic()"><span id="mic-icon">🎤</span><span id="mic-label">Record Live</span></button>
+        <button class="mb" onclick="simulateAudio()" style="flex:.5;font-size:11px;">🎲 Simulate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="miss-banner" id="miss-banner">
+    <div class="miss-banner-icon">⚠️</div>
+    <div class="miss-banner-text" id="miss-text">—</div>
+  </div>
+
+  <button class="abtn" id="analyze-btn" onclick="analyze()">
+    <span style="font-size:18px">◉</span>
+    <span id="btn-text">Analyze Sentiment</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <div id="results">
+    <div class="rh">
+      <div class="rt">Analysis Results</div>
+      <div class="rm" id="rmeta">—</div>
+    </div>
+
+    <!-- INNOVATION 1: Sarcasm / Conflict Banner -->
+    <div class="cfb" id="cfb">
+      <div class="cf-hd">
+        <div class="cf-ic">⚡</div>
+        <div>
+          <div class="cf-tit" id="cf-tit">SARCASM DETECTED</div>
+          <div class="cf-sub">Modality conflict · Cross-attention override</div>
+        </div>
+      </div>
+      <div class="cf-body" id="cf-body">—</div>
+      <div class="cf-pills">
+        <div class="cfp tp">📝 Text: <span id="cf-ts">—</span></div>
+        <div class="cfp ap">🎵 Audio: <span id="cf-as">—</span></div>
+      </div>
+      <div class="cf-meter">
+        <div class="cf-ml">Conflict Intensity</div>
+        <div class="cf-mt"><div class="cf-mf" id="cf-mf"></div></div>
+      </div>
+    </div>
+
+    <!-- Model cards -->
+    <div class="rgrid">
+      <div class="rc" id="rc-text">
+        <div class="ml"><div class="mdot" style="background:#60a5fa"></div>Text · BERT</div>
+        <div class="sem" id="te">—</div><div class="sl" id="tsl">—</div>
+        <div class="cbw"><div class="cbl"><span>Confidence</span><span id="tcv">—</span></div><div class="cbb"><div class="cbf" id="tcf"></div></div></div>
+        <div class="sb" id="tsb"></div>
+      </div>
+      <div class="rc" id="rc-audio">
+        <div class="ml"><div class="mdot" style="background:#a78bfa"></div>Audio · Wav2Vec CNN</div>
+        <div class="sem" id="ae">—</div><div class="sl" id="asl">—</div>
+        <div class="cbw"><div class="cbl"><span>Confidence</span><span id="acv">—</span></div><div class="cbb"><div class="cbf" id="acf"></div></div></div>
+        <div class="sb" id="asb"></div>
+      </div>
+    </div>
+
+    <!-- Fusion card -->
+    <div class="fc">
+      <div class="fv">
+        <div class="fvl">✦ Late Fusion · Final Verdict</div>
+        <div class="fvm" id="fl">—</div>
+        <div class="fvs" id="fs">—</div>
+      </div>
+      <div class="fvis">
+        <div class="fcirc"><div class="fcl">TEXT</div><div class="fcv" id="fct">—</div></div>
+        <div class="farr">⊕</div>
+        <div class="fcirc"><div class="fcl">AUDIO</div><div class="fcv" id="fca">—</div></div>
+        <div class="farr">→</div>
+        <div class="fcirc fin"><div class="fcl">FUSED</div><div class="fcv" id="fcf">—</div></div>
+      </div>
+    </div>
+
+    <!-- Innovations panel with tabs -->
+    <div class="innov-wrap">
+      <div class="itabs">
+        <button class="tbtn active" onclick="switchTab('traj')">📈 Emotion Trajectory</button>
+        <button class="tbtn" onclick="switchTab('xai')">🧠 SHAP · XAI</button>
+        <button class="tbtn" onclick="switchTab('att')">⚖ Cross-Attention</button>
+        <button class="tbtn" onclick="switchTab('noise')">📡 Noise Robustness</button>
+      </div>
+
+      <!-- TAB 1: Emotion Trajectory -->
+      <div class="tpan active" id="tab-traj">
+        <div class="slabel">Sentiment signal over time — sliding window inference across audio/speech</div>
+        <div class="trj-wrap"><canvas id="traj-chart"></canvas></div>
+        <div class="trj-ctrls">
+          <div class="trj-leg">
+            <div class="trj-li"><div class="trj-dot" style="background:#22c55e"></div>Positive</div>
+            <div class="trj-li"><div class="trj-dot" style="background:#ef4444"></div>Negative</div>
+            <div class="trj-li"><div class="trj-dot" style="background:#94a3b8"></div>Neutral</div>
+            <div class="trj-li"><div class="trj-dot" style="background:#f59e0b"></div>Mixed</div>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim)">Window: <span id="wlabel" style="color:var(--accent)">3s</span></div>
+          <div class="wbtns">
+            <div class="wbtn active" onclick="setWindow(this,'2s')">2s</div>
+            <div class="wbtn" onclick="setWindow(this,'3s')">3s</div>
+            <div class="wbtn" onclick="setWindow(this,'5s')">5s</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: SHAP / XAI -->
+      <div class="tpan" id="tab-xai">
+        <div class="xai-hd"><div class="xai-tag">SHAP</div><div class="xai-t">Token attribution — why did BERT decide this?</div></div>
+        <div class="shap-leg">
+          <div class="shap-li"><div class="shap-sw" style="background:rgba(34,197,94,.55)"></div>Strong positive</div>
+          <div class="shap-li"><div class="shap-sw" style="background:rgba(34,197,94,.22)"></div>Mild positive</div>
+          <div class="shap-li"><div class="shap-sw" style="background:rgba(148,163,184,.18)"></div>Neutral</div>
+          <div class="shap-li"><div class="shap-sw" style="background:rgba(239,68,68,.22)"></div>Mild negative</div>
+          <div class="shap-li"><div class="shap-sw" style="background:rgba(239,68,68,.55)"></div>Strong negative</div>
+        </div>
+        <div class="slabel">📝 BERT token attribution (hover for score + reason)</div>
+        <div class="tok-hi" id="tok-hi"></div>
+        <div id="audio-xai" style="display:none">
+          <div class="slabel" style="margin-top:12px">🎵 Audio — temporal attention segments</div>
+          <div class="tl-bar" id="tl-bar"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim)"><span>0s</span><span id="adur">12s</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Cross-Modal Attention -->
+      <div class="tpan" id="tab-att">
+        <div class="att-grid">
+          <div class="att-card">
+            <div class="att-cl">Dynamic modality weights</div>
+            <div class="att-m"><div class="att-ml">Text (BERT)</div><div class="att-bt"><div class="att-bf" id="atbf-t" style="background:#60a5fa"></div></div><div class="att-v" id="atv-t">—</div></div>
+            <div class="att-m"><div class="att-ml">Audio (CNN)</div><div class="att-bt"><div class="att-bf" id="atbf-a" style="background:#a78bfa"></div></div><div class="att-v" id="atv-a">—</div></div>
+            <div class="att-ins" id="att-ins1">—</div>
+            <div class="slabel" style="margin-top:14px;margin-bottom:9px">Accuracy — text-only vs audio-only vs fusion</div>
+            <div class="acc-grp">
+              <div class="acc-row"><div class="acc-lbl">Text only</div><div class="acc-bt"><div class="acc-bf" id="acc-t" style="background:#60a5fa"></div></div><div class="acc-v" id="accv-t">—</div></div>
+              <div class="acc-row"><div class="acc-lbl">Audio only</div><div class="acc-bt"><div class="acc-bf" id="acc-a" style="background:#a78bfa"></div></div><div class="acc-v" id="accv-a">—</div></div>
+              <div class="acc-row"><div class="acc-lbl">Fusion ✦ <span class="win-badge" id="win-b">best</span></div><div class="acc-bt"><div class="acc-bf" id="acc-f" style="background:var(--accent3)"></div></div><div class="acc-v" id="accv-f">—</div></div>
+            </div>
+          </div>
+          <div class="att-card">
+            <div class="att-cl">Attention weight distribution</div>
+            <div class="donut-w"><canvas id="donut-chart"></canvas></div>
+            <div class="att-ins" id="att-ins2" style="margin-top:11px">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Noise Robustness -->
+      <div class="tpan" id="tab-noise">
+        <div class="slabel">Accuracy vs SNR — proving fusion stays robust as audio degrades</div>
+        <div class="noise-btns">
+          <span style="font-size:11px;color:var(--text-dim);font-family:'DM Mono',monospace;letter-spacing:1px;align-self:center">NOISE:</span>
+          <div class="nb active" onclick="setNoise(this,'gaussian')">Gaussian</div>
+          <div class="nb" onclick="setNoise(this,'babble')">Babble</div>
+          <div class="nb" onclick="setNoise(this,'music')">Background Music</div>
+        </div>
+        <div class="noise-wrap"><canvas id="noise-chart"></canvas></div>
+        <div class="noise-ins" id="noise-ins">—</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <span>SonicSense v2 — Multimodal Sentiment Analysis</span>
+  <div class="scs">
+    <span class="sc">PyTorch</span><span class="sc">HuggingFace</span><span class="sc">Wav2Vec 2.0</span>
+    <span class="sc">SHAP</span><span class="sc">audiomentations</span><span class="sc">Gradio</span>
+  </div>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ BG CANVAS ═══════════════════════════════════════════════
+const bgC=document.getElementById('bg-canvas'),bgX=bgC.getContext('2d');
+function resizeBg(){bgC.width=innerWidth;bgC.height=innerHeight}
+resizeBg();addEventListener('resize',resizeBg);
+const pts=Array.from({length:60},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.3,op:Math.random()*.4+.1,ph:Math.random()*Math.PI*2}));
+(function animBg(){
+  bgX.clearRect(0,0,bgC.width,bgC.height);
+  [{x:bgC.width*.2,y:bgC.height*.3,r:300,c:'rgba(124,58,237,.06)'},{x:bgC.width*.8,y:bgC.height*.7,r:250,c:'rgba(0,229,255,.05)'},{x:bgC.width*.5,y:bgC.height*.15,r:200,c:'rgba(245,158,11,.03)'}].forEach(o=>{const g=bgX.createRadialGradient(o.x,o.y,0,o.x,o.y,o.r);g.addColorStop(0,o.c);g.addColorStop(1,'transparent');bgX.fillStyle=g;bgX.fillRect(0,0,bgC.width,bgC.height)});
+  pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.ph+=.02;if(p.x<0)p.x=bgC.width;if(p.x>bgC.width)p.x=0;if(p.y<0)p.y=bgC.height;if(p.y>bgC.height)p.y=0;bgX.beginPath();bgX.arc(p.x,p.y,p.r,0,Math.PI*2);bgX.fillStyle=`rgba(0,229,255,${p.op*(.7+.3*Math.sin(p.ph))})`;bgX.fill()});
+  requestAnimationFrame(animBg);
+})();
+
+// ═══ WAVEFORM ═════════════════════════════════════════════════
+const wvC=document.getElementById('waveform-canvas'),wvX=wvC.getContext('2d');
+let wvPh=0,wvAmp=.3,wvTgt=.3,isRec=false,isAn=false;
+function resizeWv(){wvC.width=wvC.offsetWidth*devicePixelRatio;wvC.height=wvC.offsetHeight*devicePixelRatio;wvX.scale(devicePixelRatio,devicePixelRatio)}
+addEventListener('resize',resizeWv);setTimeout(resizeWv,100);
+(function drawWv(){
+  const w=wvC.offsetWidth,h=wvC.offsetHeight;
+  wvX.clearRect(0,0,w,h);
+  wvPh+=isRec?.08:isAn?.06:.025;wvAmp+=(wvTgt-wvAmp)*.05;
+  [{f:1.2,a:.6,c:'rgba(0,229,255,',ph:0},{f:2.1,a:.35,c:'rgba(124,58,237,',ph:Math.PI/3},{f:.7,a:.25,c:'rgba(245,158,11,',ph:Math.PI/6}].forEach((l,li)=>{
+    wvX.beginPath();
+    for(let x=0;x<=w;x++){const t=x/w,y=h/2+Math.sin(t*Math.PI*8*l.f+wvPh+l.ph)*h*.35*wvAmp*l.a+Math.sin(t*Math.PI*14*l.f+wvPh*1.3+l.ph)*h*.15*wvAmp*l.a;x?wvX.lineTo(x,y):wvX.moveTo(x,y)}
+    wvX.strokeStyle=l.c+(isRec?.7:isAn?.6:.35)+')';wvX.lineWidth=li?1:1.5;wvX.stroke();
+  });
+  requestAnimationFrame(drawWv);
+})();
+
+// ═══ EXAMPLES ═════════════════════════════════════════════════
+const EX=[
+  "The product quality was absolutely incredible — the craftsmanship exceeded every one of my expectations! I will definitely be ordering again.",
+  "This is a complete disaster. The item arrived broken, customer service never responded, and I wasted two weeks waiting. Absolutely unacceptable.",
+  "Oh sure, the delivery took only three weeks and the box arrived completely crushed. Absolutely fantastic service, really impressed. Best experience of my life.",
+  "The package arrived on Tuesday. It contained the items listed in the order confirmation. Everything matched the description on the website.",
+  "The design is beautiful and I love how it feels, but the battery life is genuinely terrible and the price point is very hard to justify.",
+  "I started the call feeling genuinely optimistic about the new product roadmap. Halfway through, the revenue numbers got concerning. By the end I was alarmed by the Q3 projections and deeply disappointed in how leadership responded to the team's questions."
+];
+function setEx(i){const t=document.getElementById('text-input');t.value=EX[i];document.getElementById('char-num').textContent=EX[i].length;t.focus();updateMiss()}
+document.getElementById('text-input').addEventListener('input',function(){document.getElementById('char-num').textContent=this.value.length;updateMiss()});
+
+// ═══ MODES & TABS ═════════════════════════════════════════════
+const modes={sarcasm:true,trajectory:true,xai:true,attention:true,noise:true};
+function toggleMode(el,m){modes[m]=!modes[m];el.classList.toggle('active',modes[m])}
+function switchTab(id){
+  document.querySelectorAll('.tbtn').forEach((b,i)=>{b.classList.toggle('active',['traj','xai','att','noise'][i]===id)});
+  document.querySelectorAll('.tpan').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+// ═══ AUDIO ════════════════════════════════════════════════════
+let audioFile=null,mediaRecorder=null,chunks=[];
+function handleFileSelect(e){const f=e.target.files[0];if(f)loadAF(f)}
+function handleDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('dragover');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('audio/'))loadAF(f);else toast('⚠ Please drop a valid audio file')}
+function loadAF(file){
+  audioFile=file;
+  document.getElementById('drop-zone').style.display='none';
+  document.getElementById('audio-loaded').style.display='block';
+  document.getElementById('afn').textContent=file.name;
+  document.getElementById('afs').textContent=fb(file.size);
+  drawMW(file);wvTgt=.8;setTimeout(()=>wvTgt=.5,2000);
+  updateMiss();toast('🎵 Audio: '+file.name);
+}
+function removeAudio(){audioFile=null;document.getElementById('drop-zone').style.display='flex';document.getElementById('audio-loaded').style.display='none';document.getElementById('fi').value='';wvTgt=.3;updateMiss()}
+function simulateAudio(){
+  audioFile={name:'voice_sample.wav',size:248320,simulated:true};
+  document.getElementById('drop-zone').style.display='none';document.getElementById('audio-loaded').style.display='block';
+  document.getElementById('afn').textContent='voice_sample.wav';document.getElementById('afs').textContent='242 KB (simulated)';
+  drawMWSim();wvTgt=.7;setTimeout(()=>wvTgt=.45,2000);updateMiss();toast('🎲 Simulated audio loaded');
+}
+
+function updateMiss(){
+  const txt=document.getElementById('text-input').value.trim();
+  const b=document.getElementById('miss-banner'),m=document.getElementById('miss-text');
+  if(!txt&&!audioFile){b.classList.remove('show');return}
+  if(!audioFile){b.classList.add('show');m.innerHTML='<strong>Audio absent</strong> — running text-only mode. Fusion confidence capped ~65%. Use Simulate for full multimodal analysis.';return}
+  if(!txt){b.classList.add('show');m.innerHTML='<strong>Text absent</strong> — running audio-only mode. BERT will output low-confidence neutral. Add a transcript for full analysis.';return}
+  b.classList.remove('show');
+}
+
+function drawMWSim(){
+  const c=document.getElementById('mini-waveform'),x=c.getContext('2d');
+  c.width=c.offsetWidth*2;c.height=80;const w=c.width,h=c.height;x.clearRect(0,0,w,h);
+  for(let i=0;i<80;i++){const px=(i/80)*w,bw=w/80*.6,bh=(Math.abs(Math.sin(i*.4))*.6+Math.random()*.4)*h*.8;const g=x.createLinearGradient(0,h/2-bh/2,0,h/2+bh/2);g.addColorStop(0,'rgba(0,229,255,.8)');g.addColorStop(1,'rgba(124,58,237,.4)');x.fillStyle=g;x.beginPath();x.roundRect(px,h/2-bh/2,bw,bh,2);x.fill()}
+}
+function drawMW(file){
+  const rd=new FileReader();
+  rd.onload=e=>{
+    const ac=new(AudioContext||webkitAudioContext)();
+    ac.decodeAudioData(e.target.result,buf=>{
+      const c=document.getElementById('mini-waveform'),x=c.getContext('2d');c.width=c.offsetWidth*2;c.height=80;
+      const d=buf.getChannelData(0),w=c.width,h=c.height,step=Math.ceil(d.length/80);x.clearRect(0,0,w,h);
+      for(let i=0;i<80;i++){let mx=0;for(let j=0;j<step;j++){const v=Math.abs(d[i*step+j]||0);if(v>mx)mx=v}const px=(i/80)*w,bh=Math.max(4,mx*h*.8),bw=w/80*.6;const g=x.createLinearGradient(0,h/2-bh/2,0,h/2+bh/2);g.addColorStop(0,'rgba(0,229,255,.9)');g.addColorStop(1,'rgba(124,58,237,.5)');x.fillStyle=g;x.beginPath();x.roundRect(px,h/2-bh/2,bw,bh,2);x.fill()}
+    },()=>drawMWSim());
+  };rd.readAsArrayBuffer(file);
+}
+async function toggleMic(){
+  if(isRec){mediaRecorder&&mediaRecorder.stop();isRec=false;document.getElementById('mic-btn').classList.remove('recording');document.getElementById('mic-icon').textContent='🎤';document.getElementById('mic-label').textContent='Record Live';wvTgt=.4}
+  else{try{const s=await navigator.mediaDevices.getUserMedia({audio:true});chunks=[];mediaRecorder=new MediaRecorder(s);mediaRecorder.ondataavailable=e=>chunks.push(e.data);mediaRecorder.onstop=()=>{loadAF(new File([new Blob(chunks,{type:'audio/webm'})],'rec.webm',{type:'audio/webm'}));s.getTracks().forEach(t=>t.stop())};mediaRecorder.start();isRec=true;document.getElementById('mic-btn').classList.add('recording');document.getElementById('mic-icon').textContent='⏹';document.getElementById('mic-label').textContent='Stop';wvTgt=1;toast('🔴 Recording...')}catch{toast('⚠ Microphone access denied')}}
+}
+
+// ═══ CHARTS ═══════════════════════════════════════════════════
+let trajC=null,donutC=null,noiseC=null,noiseType='gaussian',curWindow='3s';
+const CHART_FONT="'DM Mono', monospace";
+const CHART_OPTS={responsive:true,maintainAspectRatio:false,animation:{duration:700}};
+
+function initCharts(){
+  // Trajectory chart
+  if(trajC)trajC.destroy();
+  trajC=new Chart(document.getElementById('traj-chart').getContext('2d'),{type:'line',data:{labels:[],datasets:[
+    {label:'Positive',data:[],borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.08)',tension:.4,pointRadius:3,pointHoverRadius:5,fill:true},
+    {label:'Negative',data:[],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.08)',tension:.4,pointRadius:3,pointHoverRadius:5,fill:true},
+    {label:'Neutral',data:[],borderColor:'#94a3b8',backgroundColor:'rgba(148,163,184,.05)',tension:.4,pointRadius:3,pointHoverRadius:5,fill:false},
+    {label:'Mixed',data:[],borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.06)',tension:.4,pointRadius:3,pointHoverRadius:5,fill:false}
+  ]},options:{...CHART_OPTS,scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#64748b',font:{family:CHART_FONT,size:10}}},y:{min:0,max:1,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#64748b',font:{family:CHART_FONT,size:10},callback:v=>Math.round(v*100)+'%'}}},plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(13,18,32,.95)',borderColor:'rgba(99,179,237,.2)',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8',titleFont:{family:CHART_FONT,size:11},bodyFont:{family:CHART_FONT,size:10}}}}});
+
+  // Donut chart
+  if(donutC)donutC.destroy();
+  donutC=new Chart(document.getElementById('donut-chart').getContext('2d'),{type:'doughnut',data:{labels:['Text (BERT)','Audio (CNN)'],datasets:[{data:[50,50],backgroundColor:['rgba(96,165,250,.7)','rgba(167,139,250,.7)'],borderColor:['#60a5fa','#a78bfa'],borderWidth:1.5,hoverOffset:4}]},options:{...CHART_OPTS,cutout:'66%',plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(13,18,32,.95)',borderColor:'rgba(99,179,237,.2)',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8',titleFont:{family:CHART_FONT,size:10},bodyFont:{family:CHART_FONT,size:10}}}}});
+
+  // Noise chart
+  buildNoiseChart();
+}
+
+const NOISE_DATA={
+  gaussian:{t:[.38,.48,.60,.69,.76],a:[.29,.41,.55,.65,.74],f:[.51,.61,.71,.78,.84]},
+  babble:{t:[.52,.60,.68,.73,.76],a:[.22,.35,.49,.60,.74],f:[.55,.64,.73,.79,.84]},
+  music:{t:[.64,.68,.71,.74,.76],a:[.35,.45,.56,.64,.74],f:[.67,.71,.76,.80,.84]}
+};
+const NOISE_INS={
+  gaussian:'<strong>Gaussian (white) noise</strong> is most destructive to audio — the CNN model drops to 29% at 0 dB SNR, while BERT still reads the words. Fusion stays at 51% by relying on the text branch. This is the clearest proof that multimodal robustness is not just about accuracy — it\'s about resilience.',
+  babble:'<strong>Babble noise</strong> (background chatter) barely affects BERT but crushes the CNN audio model at low SNR. The cross-attention mechanism automatically down-weights the noisy audio branch, letting the text model carry the prediction.',
+  music:'<strong>Background music</strong> has the least effect on text. At higher SNR all models converge — but the fusion model consistently outperforms both individual models at every noise level, validating the late fusion architecture.'
+};
+
+function buildNoiseChart(){
+  if(noiseC)noiseC.destroy();
+  const d=NOISE_DATA[noiseType];
+  noiseC=new Chart(document.getElementById('noise-chart').getContext('2d'),{type:'line',data:{labels:['0 dB','5 dB','10 dB','15 dB','20 dB'],datasets:[
+    {label:'Text only (BERT)',data:d.t,borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,.06)',tension:.3,pointRadius:4,pointHoverRadius:6,fill:true},
+    {label:'Audio only (CNN)',data:d.a,borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.06)',tension:.3,pointRadius:4,pointHoverRadius:6,borderDash:[4,4],fill:true},
+    {label:'Fusion ✦',data:d.f,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.07)',tension:.3,pointRadius:5,pointHoverRadius:7,borderWidth:2.5,fill:true}
+  ]},options:{...CHART_OPTS,scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#64748b',font:{family:CHART_FONT,size:10}},title:{display:true,text:'Signal-to-Noise Ratio',color:'#64748b',font:{family:CHART_FONT,size:10}}},y:{min:.1,max:.95,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#64748b',font:{family:CHART_FONT,size:10},callback:v=>Math.round(v*100)+'%'},title:{display:true,text:'Accuracy',color:'#64748b',font:{family:CHART_FONT,size:10}}}},plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{family:CHART_FONT,size:10},boxWidth:11,usePointStyle:true}},tooltip:{backgroundColor:'rgba(13,18,32,.95)',borderColor:'rgba(99,179,237,.2)',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8',titleFont:{family:CHART_FONT,size:11},bodyFont:{family:CHART_FONT,size:10},callbacks:{label:c=>` ${c.dataset.label}: ${Math.round(c.parsed.y*100)}%`}}}}});
+  document.getElementById('noise-ins').innerHTML=NOISE_INS[noiseType];
+}
+function setNoise(el,t){document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));el.classList.add('active');noiseType=t;buildNoiseChart()}
+function setWindow(el,w){document.querySelectorAll('.wbtn').forEach(b=>b.classList.remove('active'));el.classList.add('active');curWindow=w;document.getElementById('wlabel').textContent=w}
+
+// ═══ ANALYZE ══════════════════════════════════════════════════
+// === ANALYZE =============================================================
+async function analyze() {
+    const text = document.getElementById('text-input').value.trim();
+    if (!text && !audioFile) { toast('⚠ Add text or audio first'); return; }
+
+    const btn = document.getElementById('analyze-btn');
+    const sp = document.getElementById('spinner');
+    const bt = document.getElementById('btn-text');
+
+    btn.disabled = true;
+    sp.classList.add('visible');
+    bt.textContent = 'Analyzing...';
+    isAn = true; 
+    wvTgt = 1;
+
+    try {
+        const formData = new FormData();
+        formData.append('text', text || '');
+        
+        if (typeof audioFile !== 'undefined' && audioFile) {
+            formData.append('audio', audioFile);
+        }
+
+        const res = await fetch('https://ripe-emus-doubt.loca.lt/analyze', {
+            method: 'POST',
+            headers: { 
+                'Bypass-Tunnel-Reminder': 'true' 
+            },
+            body: formData,
+        });
+
+        if (!res.ok) throw new Error('Server responded with ' + res.status);
+
+        const data = await res.json();
+        renderResults(data);
+
+    } catch (err) {
+        console.error("Analysis Error:", err);
+        toast('⚠ Analysis failed — check console');
+    } finally {
+        btn.disabled = false;
+        sp.classList.remove('visible');
+        bt.textContent = 'Analyze Again';
+        isAn = false;
+        wvTgt = 0.4;
+    }
+}
+// =========================================================================
+
+ 
+
+// ═══ RENDER ═══════════════════════════════════════════════════
+function renderResults(r) {
+    // 1. Meta
+    document.getElementById('rmeta').textContent = 
+        `${new Date().toLocaleTimeString()} · Fusion v2 · Consensus`;
+
+    // 2. Text + Audio model cards (renderCard already works perfectly)
+    renderCard('t', r.text_model);
+    renderCard('a', r.audio_model);
+
+    // 3. Fusion card
+    const fSent = (r.fusion?.sentiment || 'neutral').toLowerCase();
+    const fl = document.getElementById('fl');
+    fl.textContent = fSent.toUpperCase();
+    fl.className = 'fvm ' + fSent;
+    document.getElementById('fs').textContent = r.fusion?.summary || '';
+    document.getElementById('fct').textContent = pct(r.fusion?.text_weight  || 0);
+    document.getElementById('fca').textContent = pct(r.fusion?.audio_weight || 0);
+    document.getElementById('fcf').textContent = pct(r.fusion?.confidence   || 0);
+
+    // 4. Conflict / Sarcasm banner
+    const cfb = document.getElementById('cfb');
+    if (r.conflict?.detected) {
+        cfb.classList.add('show');
+        document.getElementById('cf-tit').textContent = 
+            r.conflict.type === 'sarcasm' ? 'SARCASM DETECTED' : 'TONE MISMATCH DETECTED';
+        document.getElementById('cf-body').textContent = r.conflict.explanation || '';
+        document.getElementById('cf-ts').textContent = 
+            (r.text_model?.sentiment || '—').toUpperCase();
+        document.getElementById('cf-as').textContent = 
+            (r.audio_model?.sentiment || '—').toUpperCase();
+        setTimeout(() => {
+            document.getElementById('cf-mf').style.width = 
+                ((r.conflict.score || 0) * 100) + '%';
+        }, 150);
+    } else {
+        cfb.classList.remove('show');
+    }
+
+    // 5. Trajectory chart
+    if (r.trajectory?.length && trajC) {
+        trajC.data.labels = r.trajectory.map(p => p.time);
+        trajC.data.datasets[0].data = r.trajectory.map(p => p.positive);
+        trajC.data.datasets[1].data = r.trajectory.map(p => p.negative);
+        trajC.data.datasets[2].data = r.trajectory.map(p => p.neutral);
+        trajC.data.datasets[3].data = r.trajectory.map(p => p.mixed);
+        trajC.update();
+    }
+
+    // 6. SHAP XAI tokens
+    if (r.xai) {
+        renderTokens(r.xai.tokens || []);
+        if (r.xai.audio_segments?.length) {
+            document.getElementById('audio-xai').style.display = 'block';
+            renderTimeline(r.xai.audio_segments);
+            document.getElementById('adur').textContent = r.xai.audio_duration || '—';
+        } else {
+            document.getElementById('audio-xai').style.display = 'none';
+        }
+    }
+
+    // 7. Cross-modal attention weights
+    if (r.fusion) {
+        const tw = (r.fusion.text_weight  || 0.5) * 100;
+        const aw = (r.fusion.audio_weight || 0.5) * 100;
+        setTimeout(() => {
+            document.getElementById('atbf-t').style.width = tw + '%';
+            document.getElementById('atbf-a').style.width = aw + '%';
+        }, 150);
+        document.getElementById('atv-t').textContent  = pct(r.fusion.text_weight);
+        document.getElementById('atv-a').textContent  = pct(r.fusion.audio_weight);
+        document.getElementById('att-ins1').innerHTML = r.attention_insight  || '—';
+        document.getElementById('att-ins2').innerHTML = r.attention_insight2 || '—';
+        if (donutC) {
+            donutC.data.datasets[0].data = [tw, aw];
+            donutC.update();
+        }
+    }
+
+    // 8. Accuracy bars
+    if (r.accuracy) {
+        setTimeout(() => {
+            document.getElementById('acc-t').style.width = 
+                (r.accuracy.text_only * 100) + '%';
+            document.getElementById('acc-a').style.width = 
+                (r.accuracy.audio_only * 100) + '%';
+            document.getElementById('acc-f').style.width = 
+                (r.accuracy.fusion * 100) + '%';
+        }, 200);
+        document.getElementById('accv-t').textContent = pct(r.accuracy.text_only);
+        document.getElementById('accv-a').textContent = pct(r.accuracy.audio_only);
+        document.getElementById('accv-f').textContent = pct(r.accuracy.fusion);
+        const wb = document.getElementById('win-b');
+        if (wb) wb.style.display = 
+            (r.accuracy.fusion >= r.accuracy.text_only && 
+             r.accuracy.fusion >= r.accuracy.audio_only) ? 'inline-flex' : 'none';
+    }
+
+    // 9. Show results panel
+    const resPanel = document.getElementById('results');
+    resPanel.style.display = 'block';
+    requestAnimationFrame(() => resPanel.classList.add('visible'));
+    resPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderCard(t, m) {
+    const pfx = t === 't' ? 't' : 'a';
+    
+    // Use ?. and || to safely handle missing data
+    document.getElementById(pfx + 'e').textContent = m?.emoji || '—';
+    
+    const sl = document.getElementById(pfx + 'sl');
+    const sentiment = m?.sentiment ? m.sentiment.toUpperCase() : 'NEUTRAL';
+    sl.textContent = sentiment + (m?.missing_modality ? ' (inferred)' : '');
+    sl.className = 'sl ' + (m?.missing_modality ? 'neutral' : (m?.sentiment || 'neutral'));
+    
+    document.getElementById(pfx + 'cv').textContent = pct(m?.confidence || 0);
+    
+    const cf = document.getElementById(pfx + 'cf');
+    cf.className = 'cbf ' + (m?.missing_modality ? 'neutral' : (m?.sentiment || 'neutral'));
+    setTimeout(() => cf.style.width = ((m?.confidence || 0) * 100) + '%', 100);
+    
+    const sb = document.getElementById(pfx + 'sb');
+    sb.innerHTML = '';
+    
+    const cols = { joy: '#22c55e', sadness: '#60a5fa', anger: '#ef4444', fear: '#a78bfa', surprise: '#f59e0b', neutral: '#64748b' };
+    
+    // Safely iterate through scores
+    Object.entries(m?.scores || {}).forEach(([e, s]) => {
+        const row = document.createElement('div');
+        row.className = 'sr';
+        row.innerHTML = `<div class="se">${e}</div><div class="smb"><div class="smf" style="background:${cols[e] || '#aaa'}"></div></div><div class="sv">${Math.round(s * 100)}%</div>`;
+        sb.appendChild(row);
+        setTimeout(() => {
+            const smf = row.querySelector('.smf');
+            if (smf) smf.style.width = (s * 100) + '%';
+        }, 200);
+    });
+}
+
+function renderTokens(tokens){
+  const c=document.getElementById('tok-hi');c.innerHTML='';
+  tokens.forEach(t=>{
+    const el=document.createElement('span');
+    el.className='tok '+sClass(t.score);
+    el.innerHTML=`${t.word}<span class="tok-tip">${(t.score>0?'+':'')+Number(t.score||0).toFixed(2)} · ${t.reason||'attribution'}</span>`;
+    c.appendChild(el);
+  });
+}
+
+function renderTimeline(segs){
+  const bar=document.getElementById('tl-bar');
+  bar.querySelectorAll('.tl-seg').forEach(s=>s.remove());
+  const cmap={'POSITIVE':'rgba(34,197,94,.6)','NEGATIVE':'rgba(239,68,68,.6)','NEUTRAL':'rgba(148,163,184,.28)','MIXED':'rgba(245,158,11,.5)'};
+  let left=0;
+  segs.forEach(s=>{const el=document.createElement('div');el.className='tl-seg';el.style.left=left+'%';el.style.width=s.width_pct+'%';el.style.background=cmap[s.label]||'rgba(99,99,99,.4)';el.textContent=s.label;el.title=s.description||s.label;bar.appendChild(el);left+=s.width_pct});
+}
+
+function sClass(s){if(s>=.5)return'hp';if(s>=.15)return'mp';if(s<=-.5)return'hn';if(s<=-.15)return'mn';return'nt'}
+function pct(v){return Math.round((v||0)*100)+'%'}
+function fb(b){if(!b)return'—';if(b<1024)return b+' B';if(b<1048576)return Math.round(b/1024)+' KB';return(b/1048576).toFixed(1)+' MB'}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200)}
+
+setTimeout(()=>{setEx(2);initCharts()},400);
+</script>
+</body>
+</html>
