@@ -10,7 +10,7 @@
 
 ---
 
-## 📌 What is this?
+##  What is this?
 
 SonicSense is a **multimodal sentiment analysis system** that analyzes both **what you say** (text) and **how you say it** (audio) to predict emotion more accurately than either modality alone.
 
@@ -24,19 +24,19 @@ It was built as a deep learning project combining:
 
 ---
 
-## 🚀 Features
+##  Features
 
 | Feature | Description |
 |---------|-------------|
-| 🎭 Sarcasm Detection | Detects when text sentiment contradicts audio tone |
-| 📈 Emotion Trajectory | Sliding window inference over audio to show sentiment changing over time |
-| 🧠 SHAP · XAI | Per-token attribution scores showing which words drove the prediction |
-| ⚖️ Cross-Modal Attention | Dynamic weighting of text vs audio per sample |
-| 📡 Noise Robustness | Benchmark chart showing model accuracy vs SNR across noise types |
+|  Sarcasm Detection | Detects when text sentiment contradicts audio tone |
+|  Emotion Trajectory | Sliding window inference over audio to show sentiment changing over time |
+|  SHAP · XAI | Per-token attribution scores showing which words drove the prediction |
+|  Cross-Modal Attention | Dynamic weighting of text vs audio per sample |
+|  Noise Robustness | Benchmark chart showing model accuracy vs SNR across noise types |
 
 ---
 
-## 🗂️ Project Structure
+##  Project Structure
 
 ```
 SonicSense/
@@ -49,7 +49,7 @@ SonicSense/
 
 ---
 
-## ⚙️ How to Run
+##  How to Run
 
 ### Step 1 — Open the Colab notebook
 Open `multimodal.ipynb` in Google Colab. Make sure you have a **T4 GPU** runtime enabled:
@@ -86,7 +86,7 @@ Open `multimodal-sentiment-analyzer.html` in your browser and click **Analyze Se
 
 ---
 
-## 🔄 Subsequent Sessions (Skip Training)
+##  Subsequent Sessions (Skip Training)
 
 Once models are saved to Google Drive, you only need to run:
 1. Install cell
@@ -98,7 +98,7 @@ Once models are saved to Google Drive, you only need to run:
 
 ---
 
-## 🧠 Model Architecture
+##  Model Architecture
 
 ```
 Text Input ──→ BERT (fine-tuned) ──→ Text Logits ──┐
@@ -113,7 +113,7 @@ Audio Input ──→ Wav2Vec2 CNN ──→ Audio Logits ───────�
 
 ---
 
-## 📊 Results
+##  Results
 
 | Model | Accuracy |
 |-------|----------|
@@ -125,7 +125,7 @@ Audio Input ──→ Wav2Vec2 CNN ──→ Audio Logits ───────�
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 **Backend**
 - PyTorch 2.2.1
@@ -148,7 +148,7 @@ Audio Input ──→ Wav2Vec2 CNN ──→ Audio Logits ───────�
 
 ---
 
-## 📁 Dataset
+##  Dataset
 
 This project uses the **MELD dataset** (Multimodal EmotionLines Dataset):
 - Paper: [MELD: A Multimodal Multi-Party Dataset for Emotion Recognition in Conversation](https://arxiv.org/abs/1810.02508)
@@ -156,13 +156,13 @@ This project uses the **MELD dataset** (Multimodal EmotionLines Dataset):
 
 ---
 
-## 📝 License
+##  License
 
 MIT License — feel free to use and modify.
 
 ---
 
-## 👤 Author
+##  Author
 
 Built by **aryan12375**
 
